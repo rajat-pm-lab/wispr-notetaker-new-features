@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wispr Notetaker — Actionable CTAs</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="4" height="18" rx="1"/>
+                    <rect x="10" y="8" width="4" height="13" rx="1"/>
+                    <rect x="17" y="5" width="4" height="16" rx="1"/>
+                </svg>
+                Flow
+            </div>
+            <nav class="sidebar-nav">
+                <a class="nav-item" href="#">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+                    Dictation
+                </a>
+                <a class="nav-item active" href="#">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                    Notetaker
+                </a>
+                <a class="nav-item" href="#">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Insights
+                </a>
+                <a class="nav-item" href="#">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                    Dictionary
+                </a>
+                <a class="nav-item" href="#">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                    Snippets
+                </a>
+                <a class="nav-item" href="#">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+                    Style
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main content -->
+        <main class="main-content">
+            <!-- Meeting list view -->
+            <div id="meeting-list-view">
+                <div class="meeting-list">
+                    <h2>Recent Meetings</h2>
+                    <div id="meeting-list-container"></div>
+                </div>
+            </div>
+
+            <!-- Meeting detail view -->
+            <div id="meeting-detail-view" style="display: none;">
+                <div class="content-header">
+                    <div class="header-left">
+                        <button class="back-btn" onclick="showMeetingList()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+                    </div>
+                    <div class="header-right">
+                        <button class="header-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                            Share
+                        </button>
+                        <button class="header-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="meeting-content">
+                    <h1 class="meeting-title" id="detail-title"></h1>
+                    <p class="meeting-meta" id="detail-meta"></p>
+
+                    <div class="tabs">
+                        <button class="tab" onclick="switchTab('thoughts')">My thoughts</button>
+                        <button class="tab" onclick="switchTab('transcript')">Transcript</button>
+                        <button class="tab active" onclick="switchTab('summary')">+ Summary</button>
+                    </div>
+
+                    <div id="tab-thoughts" class="tab-content">
+                        <p style="color: var(--text-muted); font-size: 14px;">No thoughts captured for this meeting.</p>
+                    </div>
+
+                    <div id="tab-transcript" class="tab-content">
+                        <p style="color: var(--text-muted); font-size: 14px;">Full transcript available after meeting ends.</p>
+                    </div>
+
+                    <div id="tab-summary" class="tab-content active">
+                        <div id="summary-sections"></div>
+
+                        <div class="next-steps-header">
+                            <h3>Next Steps</h3>
+                            <span class="feature-badge">✦ Actionable CTAs</span>
+                        </div>
+                        <div id="action-items"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+        <button class="resume-btn">
+            <span class="resume-dot"></span>
+            Resume
+        </button>
+        <input class="ask-input" type="text" placeholder="Ask anything">
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
