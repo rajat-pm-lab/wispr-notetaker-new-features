@@ -4,7 +4,7 @@
 
 I use [Wispr Notetaker](https://wisprflow.ai/notetaker) daily for 3-4 meetings. The summary and transcript are great — but the **Next Steps** section stops at text. This project bridges the gap between "what was decided" and "what needs to happen next."
 
-![Actionable CTAs Demo](docs/demo-screenshot.png)
+**[Live Demo](https://wispr-notetaker-cta.vercel.app/)**
 
 ## The Problem
 
