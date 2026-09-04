@@ -541,7 +541,61 @@ body {
     padding: 20px;
 }
 
-.slack-modal-channel,
+.slack-modal-channel {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.slack-modal-channel label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 6px;
+}
+
+.slack-channel-input-row {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-primary);
+    transition: all var(--transition);
+}
+
+.slack-channel-input-row:focus-within {
+    border-color: var(--accent-purple);
+    background: var(--bg-white);
+}
+
+.slack-channel-hash {
+    padding-left: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    user-select: none;
+}
+
+.slack-channel-input {
+    flex: 1;
+    padding: 8px 12px 8px 4px;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    outline: none;
+    font-family: inherit;
+}
+
+.slack-channel-input::placeholder {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
 .slack-modal-recipients {
     font-size: 13px;
     color: var(--text-secondary);

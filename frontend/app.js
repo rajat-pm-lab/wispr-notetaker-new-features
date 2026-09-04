@@ -442,13 +442,21 @@ function showSlackPreview(cta, canSend) {
             <div class="slack-modal-header">
                 <div class="slack-modal-title">
                     ${ICONS.slack}
-                    <span>${canSend ? 'Post' : 'Preview'}: ${channel}</span>
+                    <span id="slack-modal-header-label">${canSend ? 'Post' : 'Preview'}: ${channel}</span>
                 </div>
                 ${!canSend ? '<span class="slack-modal-demo-tag">DEMO</span>' : ''}
                 <button class="slack-modal-close" onclick="this.closest('.slack-modal-overlay').remove()">&times;</button>
             </div>
             <div class="slack-modal-body">
-                <div class="slack-modal-channel">Channel: <strong>${channel}</strong></div>
+                <div class="slack-modal-channel">
+                    <label for="slack-channel-input">Channel:</label>
+                    <div class="slack-channel-input-row">
+                        <span class="slack-channel-hash">#</span>
+                        <input type="text" id="slack-channel-input" class="slack-channel-input"
+                            value="${channel.replace(/^#/, '')}"
+                            placeholder="e.g. product-eng, design, general">
+                    </div>
+                </div>
                 <div class="slack-modal-recipients">Mentioning: <strong>${recipients}</strong></div>
                 <div class="slack-modal-divider"></div>
                 <div class="slack-modal-message-label">Message preview</div>
@@ -461,10 +469,21 @@ function showSlackPreview(cta, canSend) {
     `;
     document.body.appendChild(modal);
 
+    // Update header label when channel input changes
+    const channelInput = document.getElementById('slack-channel-input');
+    const headerLabel = document.getElementById('slack-modal-header-label');
+    channelInput.addEventListener('input', () => {
+        const val = channelInput.value.trim();
+        headerLabel.textContent = `${canSend ? 'Post' : 'Preview'}: #${val || 'general'}`;
+    });
+
     // Attach send handler if connected
     if (canSend) {
         const sendBtn = document.getElementById('slack-send-btn');
-        sendBtn.onclick = () => sendSlackMessage(sendBtn, cta);
+        sendBtn.onclick = () => {
+            const customChannel = '#' + (channelInput.value.trim() || 'general');
+            sendSlackMessage(sendBtn, { ...cta, channel: customChannel });
+        };
     }
 }
 
