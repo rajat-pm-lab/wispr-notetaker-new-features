@@ -1,18 +1,33 @@
 // State
 let currentMeeting = null;
 let completedActions = new Set();
+let ctaStore = {}; // Store CTA data by ID to avoid inline JS issues
 
 // Icons
 const ICONS = {
     email: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
     slack: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.27 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.163 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.163 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.163 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.27a2.527 2.527 0 0 1-2.52-2.523 2.527 2.527 0 0 1 2.52-2.52h6.315A2.528 2.528 0 0 1 24 15.163a2.528 2.528 0 0 1-2.522 2.523h-6.315z"/></svg>',
     calendar: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+    note: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
 };
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadMeetings();
     loadCompletedActions();
+
+    // Event delegation for all CTA buttons
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-cta-id]');
+        if (!btn) return;
+        const ctaId = btn.getAttribute('data-cta-id');
+        const cta = ctaStore[ctaId];
+        if (!cta) return;
+
+        if (cta.type === 'email') handleEmailCTA(cta);
+        else if (cta.type === 'slack') handleSlackCTA(cta);
+        else if (cta.type === 'calendar') handleCalendarCTA(cta);
+    });
 });
 
 async function loadMeetings() {
@@ -29,20 +44,68 @@ async function loadCompletedActions() {
 
 function renderMeetingList(meetings) {
     const container = document.getElementById('meeting-list-container');
-    container.innerHTML = meetings.map(m => `
-        <div class="meeting-card" onclick="loadMeeting('${m.id}')">
-            <div>
-                <div class="meeting-card-title">${m.title}</div>
-                <div class="meeting-card-meta">${m.date} · ${m.time} · ${m.duration} · ${m.attendee_count} attendees</div>
-            </div>
-            <span class="meeting-card-arrow">›</span>
+
+    // Group meetings by date
+    const grouped = {};
+    meetings.forEach(m => {
+        const dateKey = m.date;
+        if (!grouped[dateKey]) grouped[dateKey] = [];
+        grouped[dateKey].push(m);
+    });
+
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+    function formatDateLabel(dateStr) {
+        if (dateStr === today) return `TODAY, ${formatShortDate(dateStr)}`;
+        if (dateStr === yesterday) return `YESTERDAY, ${formatShortDate(dateStr)}`;
+        return formatShortDate(dateStr).toUpperCase();
+    }
+
+    function formatShortDate(dateStr) {
+        const d = new Date(dateStr + 'T12:00:00');
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    // Calculate total words (simulated)
+    const totalMeetings = meetings.length;
+    const totalWords = meetings.reduce((sum, m) => sum + Math.floor(Math.random() * 3000 + 1500), 0);
+
+    let html = `
+        <div class="day-summary">
+            <div class="day-summary-label">YOUR MEETINGS</div>
+            <div class="day-summary-stats">You captured ${totalWords.toLocaleString()} words across ${totalMeetings} meetings</div>
         </div>
-    `).join('');
+        <div class="notes-tabs">
+            <button class="notes-tab active">My notes</button>
+            <button class="notes-tab">Shared with me</button>
+            <svg class="notes-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+    `;
+
+    const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+    sortedDates.forEach(date => {
+        html += `<div class="date-group-label">${formatDateLabel(date)}</div>`;
+        grouped[date].forEach(m => {
+            html += `
+                <div class="meeting-card" onclick="loadMeeting('${m.id}')" data-meeting-id="${m.id}">
+                    <div class="meeting-card-icon">${ICONS.note}</div>
+                    <div class="meeting-card-info">
+                        <div class="meeting-card-title">${m.title}</div>
+                        <div class="meeting-card-meta">${m.time}</div>
+                    </div>
+                </div>
+            `;
+        });
+    });
+
+    container.innerHTML = html;
 }
 
 async function loadMeeting(meetingId) {
     const res = await fetch(`/api/meetings/${meetingId}`);
     currentMeeting = await res.json();
+    ctaStore = {}; // Reset CTA store for new meeting
     renderMeetingDetail(currentMeeting);
     showMeetingDetail();
 }
@@ -58,7 +121,7 @@ function renderMeetingDetail(meeting) {
         <div class="summary-section">
             <h3>${s.title}</h3>
             <ul>
-                ${s.bullets.map(b => `<li>${b}</li>`).join('')}
+                ${s.bullets.map(b => `<li>${highlightNames(b, meeting.attendees)}</li>`).join('')}
             </ul>
         </div>
     `).join('');
@@ -78,7 +141,7 @@ function renderMeetingDetail(meeting) {
                     <div class="action-context">${item.context}</div>
                     ${item.deadline ? `<div class="action-deadline">Due: ${item.deadline}</div>` : ''}
                     <div class="cta-group">
-                        ${item.ctas.map(cta => renderCTA(cta, item)).join('')}
+                        ${item.ctas.map((cta, idx) => renderCTA(cta, item, idx)).join('')}
                     </div>
                 </div>
             </div>
@@ -89,99 +152,139 @@ function renderMeetingDetail(meeting) {
     updateCompletionBadge(meeting);
 }
 
-function renderCTA(cta, actionItem) {
+function highlightNames(text, attendees) {
+    let result = text;
+    attendees.forEach(a => {
+        const firstName = a.name.split(' ')[0];
+        const regex = new RegExp(`\\b${firstName}\\b`, 'g');
+        result = result.replace(regex, `<span class="name-highlight">${firstName}</span>`);
+    });
+    return result;
+}
+
+function renderCTA(cta, actionItem, index) {
     const icon = ICONS[cta.type] || '';
-    const typeClass = cta.type;
+    // Store CTA data with unique ID
+    const ctaId = `${actionItem.id}-cta-${index}`;
+    ctaStore[ctaId] = cta;
 
-    if (cta.type === 'email') {
-        return `<button class="cta-btn email" onclick="handleEmailCTA(${escapeForAttr(cta)})">
-            ${icon} ${cta.label}
-        </button>`;
-    }
-
-    if (cta.type === 'slack') {
-        return `<button class="cta-btn slack" onclick="handleSlackCTA(${escapeForAttr(cta)})">
-            ${icon} ${cta.label}
-        </button>`;
-    }
-
-    if (cta.type === 'calendar') {
-        return `<button class="cta-btn calendar" onclick="handleCalendarCTA(${escapeForAttr(cta)})">
-            ${icon} ${cta.label}
-        </button>`;
-    }
-
-    return '';
+    return `<button class="cta-btn ${cta.type}" data-cta-id="${ctaId}">
+        ${icon} ${cta.label}
+    </button>`;
 }
 
-function escapeForAttr(obj) {
-    return `JSON.parse(decodeURIComponent('${encodeURIComponent(JSON.stringify(obj))}'))`;
+// CTA Handlers — all use direct mailto/URL opening, no server round-trip needed for email/calendar
+function handleEmailCTA(cta) {
+    const to = (cta.recipients || []).join(',');
+    const subject = encodeURIComponent(cta.subject || '');
+    const body = encodeURIComponent(cta.body || '');
+    const url = `mailto:${to}?subject=${subject}&body=${body}`;
+    window.location.href = url;
+    showToast('Opening email client...');
 }
 
-// CTA Handlers
-async function handleEmailCTA(cta) {
-    const res = await fetch('/api/actions/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            recipients: cta.recipients,
-            subject: cta.subject,
-            body: cta.body,
-        }),
-    });
-    const data = await res.json();
+function handleSlackCTA(cta) {
+    // For demo: show the pre-filled message in a modal, since Slack API needs server-side auth
+    showSlackPreview(cta);
+}
 
-    if (data.success && data.url) {
-        window.open(data.url, '_blank');
-        showToast('Opening email client...');
+function handleCalendarCTA(cta) {
+    const title = cta.event_title || cta.subject || 'Follow-up Meeting';
+    const description = cta.body || '';
+    const attendees = (cta.recipients || []).join(',');
+
+    // Parse date and time
+    let startDate, endDate;
+    if (cta.event_date && cta.event_time) {
+        const dt = new Date(`${cta.event_date}T${cta.event_time}:00`);
+        const duration = cta.event_duration_minutes || 30;
+        const endDt = new Date(dt.getTime() + duration * 60000);
+        startDate = formatCalendarDate(dt);
+        endDate = formatCalendarDate(endDt);
     } else {
-        showToast(data.message);
+        // Default: tomorrow at 10am, 30 min
+        const tomorrow = new Date(Date.now() + 86400000);
+        tomorrow.setHours(10, 0, 0, 0);
+        const endTomorrow = new Date(tomorrow.getTime() + 30 * 60000);
+        startDate = formatCalendarDate(tomorrow);
+        endDate = formatCalendarDate(endTomorrow);
     }
+
+    const params = new URLSearchParams({
+        action: 'TEMPLATE',
+        text: title,
+        dates: `${startDate}/${endDate}`,
+        details: description,
+        add: attendees,
+    });
+
+    window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, '_blank');
+    showToast('Opening Google Calendar...');
 }
 
-async function handleSlackCTA(cta) {
-    const res = await fetch('/api/actions/slack', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            channel: cta.channel,
-            recipients: cta.recipients,
-            message: cta.body,
-            meeting_title: currentMeeting.title,
-        }),
-    });
-    const data = await res.json();
-
-    if (data.success && data.url) {
-        window.open(data.url, '_blank');
-        showToast(`Thread created in ${cta.channel}`);
-    } else if (data.success) {
-        showToast(`Thread created in ${cta.channel}`);
-    } else {
-        showToast(data.message);
-    }
+function formatCalendarDate(date) {
+    return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 }
 
-async function handleCalendarCTA(cta) {
-    const res = await fetch('/api/actions/calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            title: cta.event_title,
-            date: cta.event_date,
-            time: cta.event_time,
-            duration_minutes: cta.event_duration_minutes,
-            attendees: cta.recipients,
-            description: cta.body,
-        }),
-    });
-    const data = await res.json();
+// Slack preview modal (since actual Slack posting needs server auth)
+function showSlackPreview(cta) {
+    const recipients = (cta.recipients || []).map(r => `@${r}`).join(' ');
+    const channel = cta.channel || '#general';
 
-    if (data.success && data.url) {
-        window.open(data.url, '_blank');
-        showToast('Opening Google Calendar...');
-    } else {
-        showToast(data.message);
+    const modal = document.createElement('div');
+    modal.className = 'slack-modal-overlay';
+    modal.innerHTML = `
+        <div class="slack-modal">
+            <div class="slack-modal-header">
+                <div class="slack-modal-title">
+                    ${ICONS.slack}
+                    <span>Post to ${channel}</span>
+                </div>
+                <button class="slack-modal-close" onclick="this.closest('.slack-modal-overlay').remove()">&times;</button>
+            </div>
+            <div class="slack-modal-body">
+                <div class="slack-modal-channel">Channel: <strong>${channel}</strong></div>
+                <div class="slack-modal-recipients">Mentioning: <strong>${recipients}</strong></div>
+                <div class="slack-modal-message">${(cta.body || '').replace(/\n/g, '<br>')}</div>
+            </div>
+            <div class="slack-modal-footer">
+                <button class="slack-modal-btn cancel" onclick="this.closest('.slack-modal-overlay').remove()">Cancel</button>
+                <button class="slack-modal-btn send" onclick="sendSlackMessage(this, '${btoa(JSON.stringify(cta))}')">Send to Slack</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+async function sendSlackMessage(btn, ctaB64) {
+    const cta = JSON.parse(atob(ctaB64));
+    btn.textContent = 'Sending...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch('/api/actions/slack', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                channel: cta.channel || '#general',
+                recipients: cta.recipients || [],
+                message: cta.body || '',
+                meeting_title: currentMeeting ? currentMeeting.title : 'Meeting',
+            }),
+        });
+        const data = await res.json();
+
+        btn.closest('.slack-modal-overlay').remove();
+
+        if (data.success) {
+            showToast(`Message posted to ${cta.channel}`);
+            if (data.url) window.open(data.url, '_blank');
+        } else {
+            showToast(data.message || 'Failed to post to Slack');
+        }
+    } catch (err) {
+        btn.closest('.slack-modal-overlay').remove();
+        showToast('Failed to connect to Slack');
     }
 }
 
@@ -197,7 +300,6 @@ async function toggleComplete(actionId) {
         completedActions.add(actionId);
     }
 
-    // Update UI
     const el = document.getElementById(`action-${actionId}`);
     const checkbox = el.querySelector('.action-checkbox');
 
