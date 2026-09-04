@@ -129,6 +129,26 @@ async def create_slack_thread(
                 if not cursor:
                     break
 
+        # Fallback to #general if the specified channel isn't found
+        fallback_used = False
+        if not channel_id:
+            cursor = None
+            while True:
+                kwargs = {"types": "public_channel", "limit": 200}
+                if cursor:
+                    kwargs["cursor"] = cursor
+                result = client.conversations_list(**kwargs)
+                for ch in result["channels"]:
+                    if ch["name"] == "general":
+                        channel_id = ch["id"]
+                        break
+                if channel_id:
+                    break
+                cursor = result.get("response_metadata", {}).get("next_cursor")
+                if not cursor:
+                    break
+            fallback_used = True
+
         if not channel_id:
             return ActionResponse(
                 success=False,
@@ -176,9 +196,10 @@ async def create_slack_thread(
             message_ts=result["ts"]
         )
 
+        posted_to = "#general" if fallback_used else request.channel
         return ActionResponse(
             success=True,
-            message=f"Message posted to {request.channel}",
+            message=f"Message posted to {posted_to}" + (" (channel not found, used #general)" if fallback_used else ""),
             url=permalink.get("permalink")
         )
 
