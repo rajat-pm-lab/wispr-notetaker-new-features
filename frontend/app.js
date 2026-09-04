@@ -6,8 +6,10 @@ let ctaStore = {};
 // Slack integration state (stored in localStorage)
 function getSlackToken() { return localStorage.getItem('wispr_slack_token') || ''; }
 function setSlackToken(token) { localStorage.setItem('wispr_slack_token', token); }
-function clearSlackToken() { localStorage.removeItem('wispr_slack_token'); }
+function clearSlackToken() { localStorage.removeItem('wispr_slack_token'); localStorage.removeItem('wispr_slack_bot_name'); localStorage.removeItem('wispr_slack_team'); }
 function isSlackConnected() { return !!getSlackToken(); }
+function getSlackBotName() { return localStorage.getItem('wispr_slack_bot_name') || 'your bot'; }
+function getSlackTeam() { return localStorage.getItem('wispr_slack_team') || ''; }
 
 // Icons
 const ICONS = {
@@ -146,6 +148,8 @@ async function saveSlackToken() {
 
         if (data.valid) {
             setSlackToken(token);
+            localStorage.setItem('wispr_slack_bot_name', data.bot_user || 'your bot');
+            localStorage.setItem('wispr_slack_team', data.team || '');
             document.querySelector('.settings-overlay').remove();
             updateSettingsIndicator();
             showToast(`Connected to ${data.team}! Slack CTAs are now live.`);
@@ -526,8 +530,11 @@ async function sendSlackMessage(btn, cta) {
     }
 }
 
-// Friendly Slack error messages
-const SLACK_ERROR_HELP = {
+// Friendly Slack error messages — dynamic with actual bot name and channel
+function getSlackErrorHelp(channel) {
+    const botName = getSlackBotName();
+    const channelDisplay = channel || '#general';
+    return {
     'missing_scope': {
         title: 'Missing Permissions',
         message: 'Your Slack App needs additional permissions to send messages. Your token has been disconnected — follow these steps to fix it:',
@@ -552,19 +559,19 @@ const SLACK_ERROR_HELP = {
     },
     'channel_not_found': {
         title: 'Channel Not Found',
-        message: 'We couldn\'t find this channel in your Slack workspace. This usually means:',
+        message: `The channel <strong>${channelDisplay}</strong> wasn't found in your Slack workspace. This usually means:`,
         steps: [
-            'The channel name doesn\'t exist — double-check the spelling in your Slack workspace',
-            'It\'s a <strong>private channel</strong> — the bot can only see public channels unless explicitly invited',
-            'To invite the bot to a private channel: open the channel in Slack → type <code>/invite @YourBotName</code>',
+            `The channel <strong>${channelDisplay}</strong> doesn't exist — double-check the spelling in your Slack workspace`,
+            `It's a <strong>private channel</strong> — <strong>@${botName}</strong> can only see public channels unless explicitly invited`,
+            `To invite the bot to a private channel: open <strong>${channelDisplay}</strong> in Slack → type <code>/invite @${botName}</code>`,
         ],
     },
     'not_in_channel': {
         title: 'Bot Not in Channel',
-        message: 'Your Slack bot needs to be added to this channel before it can post.',
+        message: `<strong>@${botName}</strong> needs to be added to <strong>${channelDisplay}</strong> before it can post messages there.`,
         steps: [
-            'Open the channel in your Slack workspace',
-            'Type <code>/invite @YourBotName</code> (replace with your bot\'s actual name)',
+            `Open <strong>${channelDisplay}</strong> in your Slack workspace`,
+            `Type <code>/invite @${botName}</code> in the channel`,
             'Come back here and try sending again',
         ],
     },
@@ -597,10 +604,12 @@ const SLACK_ERROR_HELP = {
             'Click Settings here and paste the new token',
         ],
     },
-};
+    };
+}
 
 function showSlackErrorModal(errorCode, channel) {
-    const help = SLACK_ERROR_HELP[errorCode] || {
+    const errorHelp = getSlackErrorHelp(channel);
+    const help = errorHelp[errorCode] || {
         title: 'Slack Error',
         message: `Something went wrong (${errorCode}).`,
         steps: ['Check your Slack App configuration and try again.'],
