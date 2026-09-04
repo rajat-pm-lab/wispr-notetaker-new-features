@@ -65,6 +65,7 @@ async def validate_slack_token(token: Optional[str] = None) -> Dict[str, Any]:
                 "bot_user": bot_user,
                 "scopes_present": scopes_present,
                 "scopes_missing": scopes_missing,
+                "granted_scopes": granted_scopes,
             }
 
         return {
@@ -73,6 +74,7 @@ async def validate_slack_token(token: Optional[str] = None) -> Dict[str, Any]:
             "bot_user": bot_user,
             "scopes_present": scopes_present,
             "scopes_missing": [],
+            "granted_scopes": granted_scopes,
         }
 
     except SlackApiError as e:

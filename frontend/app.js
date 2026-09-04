@@ -198,6 +198,7 @@ function showSlackValidationError(data) {
                     <li>Copy the new <strong>Bot User OAuth Token</strong> (<code>xoxb-...</code>) and paste it above</li>
                 </ol>
                 <em>Note: The token changes after reinstalling. You must copy the new one.</em>
+                ${data.granted_scopes ? `<div style="margin-top:8px;font-size:0.8rem;color:#888;"><strong>Your token currently has:</strong> ${data.granted_scopes.length > 0 ? data.granted_scopes.map(s => '<code>' + s + '</code>').join(', ') : '<em>no scopes detected</em>'}</div>` : ''}
             </div>`;
     } else {
         errorDiv.innerHTML = `
