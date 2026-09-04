@@ -184,9 +184,9 @@ function showSlackValidationError(data) {
     } else if (data.scopes_missing && data.scopes_missing.length > 0) {
         errorDiv.innerHTML = `
             <div class="validation-error">
-                <strong>Missing permissions.</strong> Your Slack App needs these scopes added:
+                <strong>Missing permissions.</strong> Your Slack App needs these scopes:
                 <ul>${data.scopes_missing.map(s => `<li><code>${s}</code></li>`).join('')}</ul>
-                After adding them, <strong>reinstall the app</strong> and copy the new token.
+                <strong>To fix:</strong> Go to <a href="https://api.slack.com/apps" target="_blank">api.slack.com/apps</a> → your app → OAuth & Permissions → add the missing scopes above → click "Reinstall to Workspace" (yellow banner at top) → authorize → copy the new <code>xoxb-</code> token and paste it here.
             </div>`;
     } else {
         errorDiv.innerHTML = `
@@ -495,59 +495,71 @@ async function sendSlackMessage(btn, cta) {
 const SLACK_ERROR_HELP = {
     'missing_scope': {
         title: 'Missing Permissions',
-        message: 'Your Slack App is missing required permissions (scopes).',
+        message: 'Your Slack App needs additional permissions to send messages. Follow these steps:',
         steps: [
-            'Go to <a href="https://api.slack.com/apps" target="_blank">api.slack.com/apps</a> and select your app',
-            'Go to <strong>OAuth & Permissions</strong>',
-            'Add all 4 scopes: <code>chat:write</code>, <code>channels:read</code>, <code>users:read</code>, <code>users:read.email</code>',
-            '<strong>Reinstall the app</strong> (yellow banner at top)',
-            'Copy the new token and update it in Settings',
+            'Open <a href="https://api.slack.com/apps" target="_blank">api.slack.com/apps</a> and click on your app name',
+            'In the left sidebar, click <strong>OAuth & Permissions</strong>',
+            'Scroll down to the <strong>Scopes</strong> section → <strong>Bot Token Scopes</strong>',
+            'Click <strong>"Add an OAuth Scope"</strong> and add each of these 4 scopes: <code>chat:write</code>, <code>channels:read</code>, <code>users:read</code>, <code>users:read.email</code>',
+            'After adding scopes, scroll back to the top — you\'ll see a <strong>yellow banner</strong> saying "Please reinstall your app". Click <strong>"Reinstall to Workspace"</strong>',
+            'Slack will ask you to authorize — click <strong>Allow</strong>',
+            'You\'ll be redirected back. Scroll down to <strong>OAuth Tokens</strong> and copy the new <strong>Bot User OAuth Token</strong> (starts with <code>xoxb-</code>)',
+            'Come back here, click the Settings gear icon, paste the new token, and click <strong>Connect</strong>',
         ],
     },
     'not_configured': {
         title: 'Slack Not Connected',
-        message: 'Connect your Slack workspace to send messages.',
-        steps: ['Click the Settings icon and follow the Slack setup guide.'],
+        message: 'You haven\'t connected a Slack workspace yet.',
+        steps: [
+            'Click the <strong>Settings gear icon</strong> (top-right of the homepage)',
+            'Follow the step-by-step guide under <strong>Slack Integration</strong> to create a Slack App and get your Bot Token',
+        ],
     },
     'channel_not_found': {
         title: 'Channel Not Found',
-        message: 'The channel was not found in your workspace.',
+        message: 'We couldn\'t find this channel in your Slack workspace. This usually means:',
         steps: [
-            'Check that the channel exists in your Slack workspace',
-            'Make sure it\'s a public channel (private channels need the bot to be invited)',
-            'The channel name should match exactly (without the # symbol)',
+            'The channel name doesn\'t exist — double-check the spelling in your Slack workspace',
+            'It\'s a <strong>private channel</strong> — the bot can only see public channels unless explicitly invited',
+            'To invite the bot to a private channel: open the channel in Slack → type <code>/invite @YourBotName</code>',
         ],
     },
     'not_in_channel': {
         title: 'Bot Not in Channel',
-        message: 'The bot needs to be invited to this channel first.',
+        message: 'Your Slack bot needs to be added to this channel before it can post.',
         steps: [
-            'Go to the channel in Slack',
-            'Type <code>/invite @YourBotName</code>',
-            'Try sending the message again',
+            'Open the channel in your Slack workspace',
+            'Type <code>/invite @YourBotName</code> (replace with your bot\'s actual name)',
+            'Come back here and try sending again',
         ],
     },
     'not_authed': {
         title: 'Invalid Token',
-        message: 'Your Slack token is invalid or expired.',
+        message: 'The Slack token you provided is not valid.',
         steps: [
-            'Go to your Slack App settings',
-            'Copy the Bot User OAuth Token again',
-            'Update it in Settings here',
+            'Open <a href="https://api.slack.com/apps" target="_blank">api.slack.com/apps</a> → click your app',
+            'Go to <strong>OAuth & Permissions</strong>',
+            'Copy the <strong>Bot User OAuth Token</strong> (starts with <code>xoxb-</code>) — make sure you copy the entire string',
+            'Click Settings here and paste the new token',
         ],
     },
     'invalid_auth': {
         title: 'Invalid Token',
-        message: 'Your Slack token is invalid. Make sure you copied the full token.',
-        steps: ['Go to Settings and re-enter your Slack Bot Token.'],
+        message: 'The token doesn\'t appear to be a valid Slack Bot Token.',
+        steps: [
+            'Make sure you\'re copying the <strong>Bot User OAuth Token</strong> (not the Signing Secret or Client Secret)',
+            'The token should start with <code>xoxb-</code>',
+            'Click Settings here and re-paste the correct token',
+        ],
     },
     'token_revoked': {
-        title: 'Token Revoked',
-        message: 'Your Slack token has been revoked.',
+        title: 'Token Expired',
+        message: 'Your Slack token has been revoked or expired. This happens when the app is reinstalled or permissions change.',
         steps: [
-            'Reinstall your Slack App',
-            'Copy the new Bot User OAuth Token',
-            'Update it in Settings',
+            'Open <a href="https://api.slack.com/apps" target="_blank">api.slack.com/apps</a> → click your app',
+            'Go to <strong>OAuth & Permissions</strong> → click <strong>Reinstall to Workspace</strong>',
+            'After authorizing, copy the new <strong>Bot User OAuth Token</strong>',
+            'Click Settings here and paste the new token',
         ],
     },
 };
