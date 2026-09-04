@@ -71,16 +71,26 @@ function openSettings() {
                         </button>
                     </div>
                     ${connected ? '<button class="settings-disconnect-btn" onclick="disconnectSlack()">Disconnect Slack</button>' : ''}
-                    <details class="settings-help">
+                    <details class="settings-help" open>
                         <summary>How to get your Slack Bot Token</summary>
                         <ol>
-                            <li>Go to <a href="https://api.slack.com/apps" target="_blank">api.slack.com/apps</a></li>
-                            <li>Create New App → From scratch</li>
-                            <li>Go to OAuth & Permissions</li>
-                            <li>Add scopes: <code>chat:write</code>, <code>channels:read</code>, <code>users:read</code></li>
-                            <li>Install to Workspace</li>
-                            <li>Copy the Bot User OAuth Token (<code>xoxb-...</code>)</li>
+                            <li>Go to <a href="https://api.slack.com/apps" target="_blank">api.slack.com/apps</a> → <strong>Create New App</strong> → From scratch</li>
+                            <li>Name your app (e.g. "Notetaker CTAs") and select your workspace</li>
+                            <li>Go to <strong>OAuth & Permissions</strong> in the left sidebar</li>
+                            <li>Scroll to <strong>Bot Token Scopes</strong> and add all 4 scopes:
+                                <div class="settings-scopes">
+                                    <code>chat:write</code> <span>— Post messages to channels</span><br>
+                                    <code>channels:read</code> <span>— Find channels in your workspace</span><br>
+                                    <code>users:read</code> <span>— Resolve user names for mentions</span><br>
+                                    <code>users:read.email</code> <span>— Match attendees to Slack users</span>
+                                </div>
+                            </li>
+                            <li>Click <strong>Install to Workspace</strong> at the top of the page and authorize</li>
+                            <li>Copy the <strong>Bot User OAuth Token</strong> (<code>xoxb-...</code>) and paste it above</li>
                         </ol>
+                        <div class="settings-note">
+                            <strong>Already created an app?</strong> If you added new scopes, you must <strong>reinstall</strong> the app — look for the yellow banner at the top of the OAuth page. The token changes after reinstall.
+                        </div>
                     </details>
                 </div>
                 <div class="settings-section">

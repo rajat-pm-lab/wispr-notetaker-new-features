@@ -893,6 +893,31 @@ body {
     font-size: 12px;
 }
 
+.settings-scopes {
+    margin: 8px 0;
+    padding: 10px 14px;
+    background: var(--bg-primary);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    line-height: 2;
+}
+
+.settings-scopes span {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.settings-note {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: #fef3e2;
+    border-radius: var(--radius);
+    border: 1px solid #f0d8a8;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--accent-orange);
+}
+
 /* CTA demo badge */
 .cta-demo-badge {
     font-size: 9px;
