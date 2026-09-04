@@ -119,9 +119,11 @@ function openSettings() {
     document.body.appendChild(modal);
 }
 
-function saveSlackToken() {
+async function saveSlackToken() {
     const input = document.getElementById('slack-token-input');
+    const saveBtn = document.querySelector('.settings-save-btn');
     const token = input.value.trim();
+
     if (!token) {
         showToast('Please enter a Slack Bot Token');
         return;
@@ -130,10 +132,70 @@ function saveSlackToken() {
         showToast('Token should start with xoxb-');
         return;
     }
-    setSlackToken(token);
-    document.querySelector('.settings-overlay').remove();
-    updateSettingsIndicator();
-    showToast('Slack connected! CTA buttons are now live.');
+
+    // Validate the token before saving
+    saveBtn.textContent = 'Validating...';
+    saveBtn.disabled = true;
+
+    try {
+        const res = await fetch('/api/actions/slack/validate', {
+            method: 'POST',
+            headers: { 'X-Slack-Token': token },
+        });
+        const data = await res.json();
+
+        if (data.valid) {
+            setSlackToken(token);
+            document.querySelector('.settings-overlay').remove();
+            updateSettingsIndicator();
+            showToast(`Connected to ${data.team}! Slack CTAs are now live.`);
+        } else {
+            // Show inline validation error
+            saveBtn.textContent = 'Connect';
+            saveBtn.disabled = false;
+            showSlackValidationError(data);
+        }
+    } catch (err) {
+        saveBtn.textContent = 'Connect';
+        saveBtn.disabled = false;
+        showToast('Could not validate token. Please try again.');
+    }
+}
+
+function showSlackValidationError(data) {
+    // Remove any existing validation message
+    const existing = document.querySelector('.settings-validation');
+    if (existing) existing.remove();
+
+    const container = document.querySelector('.settings-token-row');
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'settings-validation';
+
+    if (data.error_code === 'not_authed' || data.error_code === 'invalid_auth') {
+        errorDiv.innerHTML = `
+            <div class="validation-error">
+                <strong>Invalid token.</strong> Please check that you copied the full Bot User OAuth Token starting with <code>xoxb-</code>.
+            </div>`;
+    } else if (data.error_code === 'token_revoked') {
+        errorDiv.innerHTML = `
+            <div class="validation-error">
+                <strong>Token revoked.</strong> Reinstall your Slack App and copy the new token.
+            </div>`;
+    } else if (data.scopes_missing && data.scopes_missing.length > 0) {
+        errorDiv.innerHTML = `
+            <div class="validation-error">
+                <strong>Missing permissions.</strong> Your Slack App needs these scopes added:
+                <ul>${data.scopes_missing.map(s => `<li><code>${s}</code></li>`).join('')}</ul>
+                After adding them, <strong>reinstall the app</strong> and copy the new token.
+            </div>`;
+    } else {
+        errorDiv.innerHTML = `
+            <div class="validation-error">
+                ${data.error || 'Something went wrong. Please check your Slack App configuration.'}
+            </div>`;
+    }
+
+    container.parentNode.insertBefore(errorDiv, container.nextSibling);
 }
 
 function disconnectSlack() {
@@ -420,12 +482,111 @@ async function sendSlackMessage(btn, cta) {
             showToast(`Message posted to ${cta.channel}`);
             if (data.url) window.open(data.url, '_blank');
         } else {
-            showToast(data.message || 'Failed to post to Slack');
+            // Show friendly error instead of raw error code
+            showSlackErrorModal(data.message, cta.channel);
         }
     } catch (err) {
         btn.closest('.slack-modal-overlay').remove();
         showToast('Failed to connect to Slack');
     }
+}
+
+// Friendly Slack error messages
+const SLACK_ERROR_HELP = {
+    'missing_scope': {
+        title: 'Missing Permissions',
+        message: 'Your Slack App is missing required permissions (scopes).',
+        steps: [
+            'Go to <a href="https://api.slack.com/apps" target="_blank">api.slack.com/apps</a> and select your app',
+            'Go to <strong>OAuth & Permissions</strong>',
+            'Add all 4 scopes: <code>chat:write</code>, <code>channels:read</code>, <code>users:read</code>, <code>users:read.email</code>',
+            '<strong>Reinstall the app</strong> (yellow banner at top)',
+            'Copy the new token and update it in Settings',
+        ],
+    },
+    'not_configured': {
+        title: 'Slack Not Connected',
+        message: 'Connect your Slack workspace to send messages.',
+        steps: ['Click the Settings icon and follow the Slack setup guide.'],
+    },
+    'channel_not_found': {
+        title: 'Channel Not Found',
+        message: 'The channel was not found in your workspace.',
+        steps: [
+            'Check that the channel exists in your Slack workspace',
+            'Make sure it\'s a public channel (private channels need the bot to be invited)',
+            'The channel name should match exactly (without the # symbol)',
+        ],
+    },
+    'not_in_channel': {
+        title: 'Bot Not in Channel',
+        message: 'The bot needs to be invited to this channel first.',
+        steps: [
+            'Go to the channel in Slack',
+            'Type <code>/invite @YourBotName</code>',
+            'Try sending the message again',
+        ],
+    },
+    'not_authed': {
+        title: 'Invalid Token',
+        message: 'Your Slack token is invalid or expired.',
+        steps: [
+            'Go to your Slack App settings',
+            'Copy the Bot User OAuth Token again',
+            'Update it in Settings here',
+        ],
+    },
+    'invalid_auth': {
+        title: 'Invalid Token',
+        message: 'Your Slack token is invalid. Make sure you copied the full token.',
+        steps: ['Go to Settings and re-enter your Slack Bot Token.'],
+    },
+    'token_revoked': {
+        title: 'Token Revoked',
+        message: 'Your Slack token has been revoked.',
+        steps: [
+            'Reinstall your Slack App',
+            'Copy the new Bot User OAuth Token',
+            'Update it in Settings',
+        ],
+    },
+};
+
+function showSlackErrorModal(errorCode, channel) {
+    const help = SLACK_ERROR_HELP[errorCode] || {
+        title: 'Slack Error',
+        message: `Something went wrong (${errorCode}).`,
+        steps: ['Check your Slack App configuration and try again.'],
+    };
+
+    const modal = document.createElement('div');
+    modal.className = 'slack-modal-overlay';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+        <div class="slack-modal">
+            <div class="slack-modal-header">
+                <div class="slack-modal-title">
+                    ${ICONS.slack}
+                    <span>${help.title}</span>
+                </div>
+                <button class="slack-modal-close" onclick="this.closest('.slack-modal-overlay').remove()">&times;</button>
+            </div>
+            <div class="slack-modal-body">
+                <p class="slack-error-message">${help.message}</p>
+                <div class="slack-error-steps">
+                    <strong>How to fix:</strong>
+                    <ol>
+                        ${help.steps.map(s => `<li>${s}</li>`).join('')}
+                    </ol>
+                </div>
+            </div>
+            <div class="slack-modal-footer">
+                <button class="slack-modal-btn cancel" onclick="this.closest('.slack-modal-overlay').remove()">Close</button>
+                <button class="slack-modal-btn send" onclick="this.closest('.slack-modal-overlay').remove(); openSettings();">Open Settings</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
 }
 
 // ===== ACTION ITEM TRACKING =====

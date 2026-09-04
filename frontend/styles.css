@@ -918,6 +918,64 @@ body {
     color: var(--accent-orange);
 }
 
+/* Settings validation errors */
+.settings-validation {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.validation-error {
+    padding: 12px 14px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: var(--radius);
+    font-size: 13px;
+    color: #dc2626;
+    line-height: 1.5;
+}
+
+.validation-error ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+}
+
+.validation-error code {
+    background: #fee2e2;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+/* Slack error modal */
+.slack-error-message {
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.slack-error-steps {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+.slack-error-steps ol {
+    margin: 8px 0 0;
+    padding-left: 18px;
+}
+
+.slack-error-steps code {
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
 /* CTA demo badge */
 .cta-demo-badge {
     font-size: 9px;

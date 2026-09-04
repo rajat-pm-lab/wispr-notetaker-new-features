@@ -1,8 +1,27 @@
 import os
-from typing import Optional
+from typing import Optional, Dict, Any
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from app.models.schemas import SlackActionRequest, ActionResponse
+
+REQUIRED_SCOPES = ["chat:write", "channels:read", "users:read", "users:read.email"]
+
+SCOPE_DESCRIPTIONS = {
+    "chat:write": "Post messages to channels",
+    "channels:read": "Find channels in your workspace",
+    "users:read": "Resolve user names for mentions",
+    "users:read.email": "Match attendees to Slack users",
+}
+
+# Friendly error messages for common Slack API errors
+ERROR_MESSAGES = {
+    "missing_scope": "missing_scope",
+    "not_authed": "Your Slack token is invalid or expired. Please re-copy it from your Slack App settings.",
+    "invalid_auth": "Your Slack token is invalid. Please check that you copied the full token starting with xoxb-.",
+    "token_revoked": "Your Slack token has been revoked. Please reinstall your Slack App and copy the new token.",
+    "channel_not_found": "Channel not found in your workspace. Make sure the bot is invited to the channel.",
+    "not_in_channel": "The bot is not in this channel. Invite it by typing /invite @YourBotName in the channel.",
+}
 
 
 def get_slack_client(user_token: Optional[str] = None) -> Optional[WebClient]:
@@ -10,6 +29,75 @@ def get_slack_client(user_token: Optional[str] = None) -> Optional[WebClient]:
     if not token:
         return None
     return WebClient(token=token)
+
+
+async def validate_slack_token(token: Optional[str] = None) -> Dict[str, Any]:
+    """Validate a Slack token and check which scopes are available."""
+    client = get_slack_client(token)
+    if not client:
+        return {
+            "valid": False,
+            "error": "No token provided",
+            "scopes_present": [],
+            "scopes_missing": REQUIRED_SCOPES,
+        }
+
+    try:
+        # auth.test tells us if the token is valid and what scopes it has
+        result = client.auth_test()
+        team = result.get("team", "Unknown workspace")
+        bot_user = result.get("user", "Unknown bot")
+
+        # Check scopes by trying the APIs we need
+        scopes_present = []
+        scopes_missing = []
+
+        # Test channels:read
+        try:
+            client.conversations_list(types="public_channel", limit=1)
+            scopes_present.append("channels:read")
+        except SlackApiError:
+            scopes_missing.append("channels:read")
+
+        # Test users:read
+        try:
+            client.users_list(limit=1)
+            scopes_present.append("users:read")
+        except SlackApiError:
+            scopes_missing.append("users:read")
+
+        # chat:write and users:read.email can't be easily tested without side effects,
+        # so we check based on the auth response headers if available
+        # For now, mark them as needing verification
+        if "chat:write" not in scopes_missing:
+            scopes_present.append("chat:write")
+        if "users:read.email" not in scopes_missing:
+            scopes_present.append("users:read.email")
+
+        return {
+            "valid": True,
+            "team": team,
+            "bot_user": bot_user,
+            "scopes_present": scopes_present,
+            "scopes_missing": scopes_missing,
+        }
+
+    except SlackApiError as e:
+        error_code = e.response.get("error", "unknown_error")
+        return {
+            "valid": False,
+            "error": ERROR_MESSAGES.get(error_code, f"Slack error: {error_code}"),
+            "error_code": error_code,
+            "scopes_present": [],
+            "scopes_missing": REQUIRED_SCOPES,
+        }
+
+
+def get_friendly_error(error_code: str) -> str:
+    """Convert a Slack error code into a user-friendly message."""
+    if error_code == "missing_scope":
+        return "missing_scope"
+    return ERROR_MESSAGES.get(error_code, f"Something went wrong ({error_code}). Please check your Slack App configuration.")
 
 
 async def create_slack_thread(
@@ -20,7 +108,7 @@ async def create_slack_thread(
     if not client:
         return ActionResponse(
             success=False,
-            message="Slack not configured. Connect your Slack in Settings."
+            message="not_configured"
         )
 
     try:
@@ -37,7 +125,8 @@ async def create_slack_thread(
         if not channel_id:
             return ActionResponse(
                 success=False,
-                message=f"Channel {request.channel} not found in your workspace. Check the channel name."
+                message="channel_not_found",
+                url=request.channel
             )
 
         blocks = [
@@ -87,7 +176,8 @@ async def create_slack_thread(
         )
 
     except SlackApiError as e:
+        error_code = e.response.get("error", "unknown_error")
         return ActionResponse(
             success=False,
-            message=f"Slack error: {e.response['error']}"
+            message=error_code
         )

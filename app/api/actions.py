@@ -5,7 +5,7 @@ from app.models.schemas import (
     SlackActionRequest, CalendarActionRequest, ActionResponse
 )
 from app.services.email_service import compose_email
-from app.services.slack_service import create_slack_thread
+from app.services.slack_service import create_slack_thread, validate_slack_token
 from app.services.calendar_service import create_calendar_event
 
 router = APIRouter(prefix="/api/actions", tags=["actions"])
@@ -33,6 +33,12 @@ async def send_slack(
 @router.post("/calendar", response_model=ActionResponse)
 async def create_event(request: CalendarActionRequest):
     return await create_calendar_event(request)
+
+
+@router.post("/slack/validate")
+async def validate_slack(x_slack_token: Optional[str] = Header(None)):
+    """Validate a Slack token and return which scopes are present/missing."""
+    return await validate_slack_token(x_slack_token)
 
 
 # Track completed action items in memory (for demo purposes)
