@@ -150,7 +150,9 @@ async function saveSlackToken() {
             updateSettingsIndicator();
             showToast(`Connected to ${data.team}! Slack CTAs are now live.`);
         } else {
-            // Show inline validation error
+            // Don't save the token if validation fails — this prevents the loop
+            clearSlackToken();
+            updateSettingsIndicator();
             saveBtn.textContent = 'Connect';
             saveBtn.disabled = false;
             showSlackValidationError(data);
@@ -185,8 +187,17 @@ function showSlackValidationError(data) {
         errorDiv.innerHTML = `
             <div class="validation-error">
                 <strong>Missing permissions.</strong> Your Slack App needs these scopes:
-                <ul>${data.scopes_missing.map(s => `<li><code>${s}</code></li>`).join('')}</ul>
-                <strong>To fix:</strong> Go to <a href="https://api.slack.com/apps" target="_blank">api.slack.com/apps</a> → your app → OAuth & Permissions → add the missing scopes above → click "Reinstall to Workspace" (yellow banner at top) → authorize → copy the new <code>xoxb-</code> token and paste it here.
+                <ul>${data.scopes_missing.map(s => `<li><code>${s}</code> — ${{'chat:write':'Post messages','channels:read':'Find channels','users:read':'Resolve user names','users:read.email':'Match attendees'}[s] || s}</li>`).join('')}</ul>
+                <strong>To fix:</strong>
+                <ol>
+                    <li>Go to <a href="https://api.slack.com/apps" target="_blank">api.slack.com/apps</a> → click your app</li>
+                    <li>Click <strong>OAuth & Permissions</strong> in the left sidebar</li>
+                    <li>Scroll to <strong>Bot Token Scopes</strong> → click <strong>"Add an OAuth Scope"</strong> for each missing scope above</li>
+                    <li>Scroll back to the top of the page → click <strong>"Install to Workspace"</strong> (or <strong>"Reinstall to Workspace"</strong> if already installed)</li>
+                    <li>Click <strong>Allow</strong> to authorize</li>
+                    <li>Copy the new <strong>Bot User OAuth Token</strong> (<code>xoxb-...</code>) and paste it above</li>
+                </ol>
+                <em>Note: The token changes after reinstalling. You must copy the new one.</em>
             </div>`;
     } else {
         errorDiv.innerHTML = `
@@ -482,7 +493,11 @@ async function sendSlackMessage(btn, cta) {
             showToast(`Message posted to ${cta.channel}`);
             if (data.url) window.open(data.url, '_blank');
         } else {
-            // Show friendly error instead of raw error code
+            // If auth/scope error, clear stored token so user must re-validate properly
+            if (['missing_scope', 'not_authed', 'invalid_auth', 'token_revoked'].includes(data.message)) {
+                clearSlackToken();
+                updateSettingsIndicator();
+            }
             showSlackErrorModal(data.message, cta.channel);
         }
     } catch (err) {
@@ -495,16 +510,16 @@ async function sendSlackMessage(btn, cta) {
 const SLACK_ERROR_HELP = {
     'missing_scope': {
         title: 'Missing Permissions',
-        message: 'Your Slack App needs additional permissions to send messages. Follow these steps:',
+        message: 'Your Slack App needs additional permissions to send messages. Your token has been disconnected — follow these steps to fix it:',
         steps: [
             'Open <a href="https://api.slack.com/apps" target="_blank">api.slack.com/apps</a> and click on your app name',
             'In the left sidebar, click <strong>OAuth & Permissions</strong>',
-            'Scroll down to the <strong>Scopes</strong> section → <strong>Bot Token Scopes</strong>',
-            'Click <strong>"Add an OAuth Scope"</strong> and add each of these 4 scopes: <code>chat:write</code>, <code>channels:read</code>, <code>users:read</code>, <code>users:read.email</code>',
-            'After adding scopes, scroll back to the top — you\'ll see a <strong>yellow banner</strong> saying "Please reinstall your app". Click <strong>"Reinstall to Workspace"</strong>',
-            'Slack will ask you to authorize — click <strong>Allow</strong>',
-            'You\'ll be redirected back. Scroll down to <strong>OAuth Tokens</strong> and copy the new <strong>Bot User OAuth Token</strong> (starts with <code>xoxb-</code>)',
-            'Come back here, click the Settings gear icon, paste the new token, and click <strong>Connect</strong>',
+            'Scroll to <strong>Bot Token Scopes</strong> and click <strong>"Add an OAuth Scope"</strong>',
+            'Add all 4 required scopes: <code>chat:write</code>, <code>channels:read</code>, <code>users:read</code>, <code>users:read.email</code>',
+            'Scroll to the top of the page and click <strong>"Install to Workspace"</strong> (or <strong>"Reinstall to Workspace"</strong>)',
+            'Click <strong>Allow</strong> to authorize',
+            'Copy the new <strong>Bot User OAuth Token</strong> (<code>xoxb-...</code>) — the token changes after reinstalling!',
+            'Come back here → click the Settings gear icon → paste the new token → click <strong>Connect</strong>',
         ],
     },
     'not_configured': {

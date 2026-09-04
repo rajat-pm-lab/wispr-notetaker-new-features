@@ -43,43 +43,36 @@ async def validate_slack_token(token: Optional[str] = None) -> Dict[str, Any]:
         }
 
     try:
-        # auth.test tells us if the token is valid and what scopes it has
+        # auth.test tells us if the token is valid and returns granted scopes in headers
         result = client.auth_test()
         team = result.get("team", "Unknown workspace")
         bot_user = result.get("user", "Unknown bot")
 
-        # Check scopes by trying the APIs we need
-        scopes_present = []
-        scopes_missing = []
+        # Get actual granted scopes from response headers
+        granted_scopes_raw = result.headers.get("x-oauth-scopes", "")
+        granted_scopes = [s.strip() for s in granted_scopes_raw.split(",") if s.strip()]
 
-        # Test channels:read
-        try:
-            client.conversations_list(types="public_channel", limit=1)
-            scopes_present.append("channels:read")
-        except SlackApiError:
-            scopes_missing.append("channels:read")
+        scopes_present = [s for s in REQUIRED_SCOPES if s in granted_scopes]
+        scopes_missing = [s for s in REQUIRED_SCOPES if s not in granted_scopes]
 
-        # Test users:read
-        try:
-            client.users_list(limit=1)
-            scopes_present.append("users:read")
-        except SlackApiError:
-            scopes_missing.append("users:read")
-
-        # chat:write and users:read.email can't be easily tested without side effects,
-        # so we check based on the auth response headers if available
-        # For now, mark them as needing verification
-        if "chat:write" not in scopes_missing:
-            scopes_present.append("chat:write")
-        if "users:read.email" not in scopes_missing:
-            scopes_present.append("users:read.email")
+        # Only mark as valid if ALL required scopes are present
+        if scopes_missing:
+            return {
+                "valid": False,
+                "error": "missing_scope",
+                "error_code": "missing_scope",
+                "team": team,
+                "bot_user": bot_user,
+                "scopes_present": scopes_present,
+                "scopes_missing": scopes_missing,
+            }
 
         return {
             "valid": True,
             "team": team,
             "bot_user": bot_user,
             "scopes_present": scopes_present,
-            "scopes_missing": scopes_missing,
+            "scopes_missing": [],
         }
 
     except SlackApiError as e:
