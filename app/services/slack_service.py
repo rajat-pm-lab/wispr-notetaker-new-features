@@ -5,23 +5,25 @@ from slack_sdk.errors import SlackApiError
 from app.models.schemas import SlackActionRequest, ActionResponse
 
 
-def get_slack_client() -> Optional[WebClient]:
-    token = os.getenv("SLACK_BOT_TOKEN")
+def get_slack_client(user_token: Optional[str] = None) -> Optional[WebClient]:
+    token = user_token or os.getenv("SLACK_BOT_TOKEN")
     if not token:
         return None
     return WebClient(token=token)
 
 
-async def create_slack_thread(request: SlackActionRequest) -> ActionResponse:
-    client = get_slack_client()
+async def create_slack_thread(
+    request: SlackActionRequest,
+    user_token: Optional[str] = None,
+) -> ActionResponse:
+    client = get_slack_client(user_token)
     if not client:
         return ActionResponse(
             success=False,
-            message="Slack not configured. Add SLACK_BOT_TOKEN to .env"
+            message="Slack not configured. Connect your Slack in Settings."
         )
 
     try:
-        # Resolve channel name to ID
         channel_id = None
         channel_name = request.channel.lstrip("#") if request.channel else None
 
@@ -33,13 +35,11 @@ async def create_slack_thread(request: SlackActionRequest) -> ActionResponse:
                     break
 
         if not channel_id:
-            # Fall back to DM with first recipient
             return ActionResponse(
                 success=False,
-                message=f"Channel {request.channel} not found. Please check the channel name."
+                message=f"Channel {request.channel} not found in your workspace. Check the channel name."
             )
 
-        # Build the message with meeting context
         blocks = [
             {
                 "type": "header",
@@ -57,7 +57,6 @@ async def create_slack_thread(request: SlackActionRequest) -> ActionResponse:
             },
         ]
 
-        # Mention recipients
         if request.recipients:
             mentions = " ".join(f"@{r}" for r in request.recipients)
             blocks.append({
@@ -83,7 +82,7 @@ async def create_slack_thread(request: SlackActionRequest) -> ActionResponse:
 
         return ActionResponse(
             success=True,
-            message=f"Thread created in {request.channel}",
+            message=f"Message posted to {request.channel}",
             url=permalink.get("permalink")
         )
 

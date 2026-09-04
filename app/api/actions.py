@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+from typing import Optional, List
+from fastapi import APIRouter, Header
 from pydantic import BaseModel
 from app.models.schemas import (
     SlackActionRequest, CalendarActionRequest, ActionResponse
@@ -11,7 +12,7 @@ router = APIRouter(prefix="/api/actions", tags=["actions"])
 
 
 class EmailActionRequest(BaseModel):
-    recipients: list[str]
+    recipients: List[str]
     subject: str
     body: str
 
@@ -22,8 +23,11 @@ async def send_email(request: EmailActionRequest):
 
 
 @router.post("/slack", response_model=ActionResponse)
-async def send_slack(request: SlackActionRequest):
-    return await create_slack_thread(request)
+async def send_slack(
+    request: SlackActionRequest,
+    x_slack_token: Optional[str] = Header(None),
+):
+    return await create_slack_thread(request, user_token=x_slack_token)
 
 
 @router.post("/calendar", response_model=ActionResponse)

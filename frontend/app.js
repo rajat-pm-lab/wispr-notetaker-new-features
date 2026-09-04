@@ -1,7 +1,13 @@
 // State
 let currentMeeting = null;
 let completedActions = new Set();
-let ctaStore = {}; // Store CTA data by ID to avoid inline JS issues
+let ctaStore = {};
+
+// Slack integration state (stored in localStorage)
+function getSlackToken() { return localStorage.getItem('wispr_slack_token') || ''; }
+function setSlackToken(token) { localStorage.setItem('wispr_slack_token', token); }
+function clearSlackToken() { localStorage.removeItem('wispr_slack_token'); }
+function isSlackConnected() { return !!getSlackToken(); }
 
 // Icons
 const ICONS = {
@@ -9,14 +15,17 @@ const ICONS = {
     slack: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.27 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.163 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.163 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.163 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.27a2.527 2.527 0 0 1-2.52-2.523 2.527 2.527 0 0 1 2.52-2.52h6.315A2.528 2.528 0 0 1 24 15.163a2.528 2.528 0 0 1-2.522 2.523h-6.315z"/></svg>',
     calendar: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
     note: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+    settings: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+    check: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
 };
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadMeetings();
     loadCompletedActions();
+    updateSettingsIndicator();
 
-    // Event delegation for all CTA buttons
+    // Event delegation for CTA buttons
     document.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-cta-id]');
         if (!btn) return;
@@ -30,6 +39,108 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// ===== SETTINGS PANEL =====
+function openSettings() {
+    const connected = isSlackConnected();
+    const modal = document.createElement('div');
+    modal.className = 'settings-overlay';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+        <div class="settings-panel">
+            <div class="settings-header">
+                <h3>Integrations</h3>
+                <button class="settings-close" onclick="this.closest('.settings-overlay').remove()">&times;</button>
+            </div>
+            <div class="settings-body">
+                <div class="settings-section">
+                    <div class="settings-section-header">
+                        ${ICONS.slack}
+                        <span>Slack Integration</span>
+                        ${connected ? '<span class="settings-connected">Connected</span>' : '<span class="settings-disconnected">Not connected</span>'}
+                    </div>
+                    <p class="settings-description">
+                        Connect your Slack workspace to post action items directly to your team channels.
+                        Your token is stored locally in your browser only — never sent to our servers for storage.
+                    </p>
+                    <div class="settings-token-row">
+                        <input type="password" class="settings-token-input" id="slack-token-input"
+                            placeholder="Paste your Slack Bot Token (xoxb-...)"
+                            value="${getSlackToken()}">
+                        <button class="settings-save-btn" onclick="saveSlackToken()">
+                            ${connected ? 'Update' : 'Connect'}
+                        </button>
+                    </div>
+                    ${connected ? '<button class="settings-disconnect-btn" onclick="disconnectSlack()">Disconnect Slack</button>' : ''}
+                    <details class="settings-help">
+                        <summary>How to get your Slack Bot Token</summary>
+                        <ol>
+                            <li>Go to <a href="https://api.slack.com/apps" target="_blank">api.slack.com/apps</a></li>
+                            <li>Create New App → From scratch</li>
+                            <li>Go to OAuth & Permissions</li>
+                            <li>Add scopes: <code>chat:write</code>, <code>channels:read</code>, <code>users:read</code></li>
+                            <li>Install to Workspace</li>
+                            <li>Copy the Bot User OAuth Token (<code>xoxb-...</code>)</li>
+                        </ol>
+                    </details>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-header">
+                        ${ICONS.email}
+                        <span>Email</span>
+                        <span class="settings-connected">Ready</span>
+                    </div>
+                    <p class="settings-description">
+                        Uses your default email client (Gmail, Outlook, Apple Mail). No setup needed — CTAs open a pre-filled compose window.
+                    </p>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-header">
+                        ${ICONS.calendar}
+                        <span>Google Calendar</span>
+                        <span class="settings-connected">Ready</span>
+                    </div>
+                    <p class="settings-description">
+                        Opens Google Calendar with pre-filled event details. No setup needed — works with any Google account.
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function saveSlackToken() {
+    const input = document.getElementById('slack-token-input');
+    const token = input.value.trim();
+    if (!token) {
+        showToast('Please enter a Slack Bot Token');
+        return;
+    }
+    if (!token.startsWith('xoxb-')) {
+        showToast('Token should start with xoxb-');
+        return;
+    }
+    setSlackToken(token);
+    document.querySelector('.settings-overlay').remove();
+    updateSettingsIndicator();
+    showToast('Slack connected! CTA buttons are now live.');
+}
+
+function disconnectSlack() {
+    clearSlackToken();
+    document.querySelector('.settings-overlay').remove();
+    updateSettingsIndicator();
+    showToast('Slack disconnected');
+}
+
+function updateSettingsIndicator() {
+    const indicator = document.getElementById('settings-indicator');
+    if (indicator) {
+        indicator.className = isSlackConnected() ? 'settings-dot connected' : 'settings-dot';
+    }
+}
+
+// ===== DATA LOADING =====
 async function loadMeetings() {
     const res = await fetch('/api/meetings');
     const meetings = await res.json();
@@ -42,39 +153,33 @@ async function loadCompletedActions() {
     completedActions = new Set(completed);
 }
 
+// ===== MEETING LIST =====
 function renderMeetingList(meetings) {
     const container = document.getElementById('meeting-list-container');
 
-    // Group meetings by date
     const grouped = {};
     meetings.forEach(m => {
-        const dateKey = m.date;
-        if (!grouped[dateKey]) grouped[dateKey] = [];
-        grouped[dateKey].push(m);
+        if (!grouped[m.date]) grouped[m.date] = [];
+        grouped[m.date].push(m);
     });
 
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
     function formatDateLabel(dateStr) {
-        if (dateStr === today) return `TODAY, ${formatShortDate(dateStr)}`;
-        if (dateStr === yesterday) return `YESTERDAY, ${formatShortDate(dateStr)}`;
-        return formatShortDate(dateStr).toUpperCase();
-    }
-
-    function formatShortDate(dateStr) {
         const d = new Date(dateStr + 'T12:00:00');
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+        if (dateStr === today) return `TODAY, ${label}`;
+        if (dateStr === yesterday) return `YESTERDAY, ${label}`;
+        return label;
     }
 
-    // Calculate total words (simulated)
     const totalMeetings = meetings.length;
-    const totalWords = meetings.reduce((sum, m) => sum + Math.floor(Math.random() * 3000 + 1500), 0);
 
     let html = `
         <div class="day-summary">
             <div class="day-summary-label">YOUR MEETINGS</div>
-            <div class="day-summary-stats">You captured ${totalWords.toLocaleString()} words across ${totalMeetings} meetings</div>
+            <div class="day-summary-stats">You have ${totalMeetings} meetings with actionable next steps</div>
         </div>
         <div class="notes-tabs">
             <button class="notes-tab active">My notes</button>
@@ -83,12 +188,11 @@ function renderMeetingList(meetings) {
         </div>
     `;
 
-    const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-    sortedDates.forEach(date => {
+    Object.keys(grouped).sort((a, b) => b.localeCompare(a)).forEach(date => {
         html += `<div class="date-group-label">${formatDateLabel(date)}</div>`;
         grouped[date].forEach(m => {
             html += `
-                <div class="meeting-card" onclick="loadMeeting('${m.id}')" data-meeting-id="${m.id}">
+                <div class="meeting-card" onclick="loadMeeting('${m.id}')">
                     <div class="meeting-card-icon">${ICONS.note}</div>
                     <div class="meeting-card-info">
                         <div class="meeting-card-title">${m.title}</div>
@@ -102,10 +206,11 @@ function renderMeetingList(meetings) {
     container.innerHTML = html;
 }
 
+// ===== MEETING DETAIL =====
 async function loadMeeting(meetingId) {
     const res = await fetch(`/api/meetings/${meetingId}`);
     currentMeeting = await res.json();
-    ctaStore = {}; // Reset CTA store for new meeting
+    ctaStore = {};
     renderMeetingDetail(currentMeeting);
     showMeetingDetail();
 }
@@ -115,7 +220,6 @@ function renderMeetingDetail(meeting) {
     document.getElementById('detail-meta').textContent =
         `${meeting.date} · ${meeting.time} · ${meeting.duration} · ${meeting.attendees.map(a => a.name).join(', ')}`;
 
-    // Render summary sections
     const sectionsEl = document.getElementById('summary-sections');
     sectionsEl.innerHTML = meeting.summary_sections.map(s => `
         <div class="summary-section">
@@ -126,7 +230,6 @@ function renderMeetingDetail(meeting) {
         </div>
     `).join('');
 
-    // Render action items with CTAs
     const actionsEl = document.getElementById('action-items');
     actionsEl.innerHTML = meeting.action_items.map(item => {
         const isCompleted = completedActions.has(item.id);
@@ -156,36 +259,43 @@ function highlightNames(text, attendees) {
     let result = text;
     attendees.forEach(a => {
         const firstName = a.name.split(' ')[0];
-        const regex = new RegExp(`\\b${firstName}\\b`, 'g');
-        result = result.replace(regex, `<span class="name-highlight">${firstName}</span>`);
+        result = result.replace(new RegExp(`\\b${firstName}\\b`, 'g'),
+            `<span class="name-highlight">${firstName}</span>`);
     });
     return result;
 }
 
 function renderCTA(cta, actionItem, index) {
     const icon = ICONS[cta.type] || '';
-    // Store CTA data with unique ID
     const ctaId = `${actionItem.id}-cta-${index}`;
     ctaStore[ctaId] = cta;
 
+    let badge = '';
+    if (cta.type === 'slack' && !isSlackConnected()) {
+        badge = '<span class="cta-demo-badge">demo</span>';
+    }
+
     return `<button class="cta-btn ${cta.type}" data-cta-id="${ctaId}">
-        ${icon} ${cta.label}
+        ${icon} ${cta.label} ${badge}
     </button>`;
 }
 
-// CTA Handlers — all use direct mailto/URL opening, no server round-trip needed for email/calendar
+// ===== CTA HANDLERS =====
+
 function handleEmailCTA(cta) {
     const to = (cta.recipients || []).join(',');
     const subject = encodeURIComponent(cta.subject || '');
     const body = encodeURIComponent(cta.body || '');
-    const url = `mailto:${to}?subject=${subject}&body=${body}`;
-    window.location.href = url;
+    window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
     showToast('Opening email client...');
 }
 
 function handleSlackCTA(cta) {
-    // For demo: show the pre-filled message in a modal, since Slack API needs server-side auth
-    showSlackPreview(cta);
+    if (isSlackConnected()) {
+        showSlackPreview(cta, true);
+    } else {
+        showSlackPreview(cta, false);
+    }
 }
 
 function handleCalendarCTA(cta) {
@@ -193,7 +303,6 @@ function handleCalendarCTA(cta) {
     const description = cta.body || '';
     const attendees = (cta.recipients || []).join(',');
 
-    // Parse date and time
     let startDate, endDate;
     if (cta.event_date && cta.event_time) {
         const dt = new Date(`${cta.event_date}T${cta.event_time}:00`);
@@ -202,7 +311,6 @@ function handleCalendarCTA(cta) {
         startDate = formatCalendarDate(dt);
         endDate = formatCalendarDate(endDt);
     } else {
-        // Default: tomorrow at 10am, 30 min
         const tomorrow = new Date(Date.now() + 86400000);
         tomorrow.setHours(10, 0, 0, 0);
         const endTomorrow = new Date(tomorrow.getTime() + 30 * 60000);
@@ -226,45 +334,67 @@ function formatCalendarDate(date) {
     return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 }
 
-// Slack preview modal (since actual Slack posting needs server auth)
-function showSlackPreview(cta) {
+// ===== SLACK MODAL =====
+
+function showSlackPreview(cta, canSend) {
     const recipients = (cta.recipients || []).map(r => `@${r}`).join(' ');
     const channel = cta.channel || '#general';
 
     const modal = document.createElement('div');
     modal.className = 'slack-modal-overlay';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    const footer = canSend
+        ? `<button class="slack-modal-btn cancel" onclick="this.closest('.slack-modal-overlay').remove()">Cancel</button>
+           <button class="slack-modal-btn send" id="slack-send-btn">Send to Slack</button>`
+        : `<div class="slack-demo-notice">
+               <span class="slack-demo-icon">i</span>
+               <span>Demo mode — <a href="javascript:void(0)" onclick="this.closest('.slack-modal-overlay').remove(); openSettings();">connect your Slack</a> to send live messages</span>
+           </div>
+           <button class="slack-modal-btn cancel" onclick="this.closest('.slack-modal-overlay').remove()">Close</button>`;
+
     modal.innerHTML = `
         <div class="slack-modal">
             <div class="slack-modal-header">
                 <div class="slack-modal-title">
                     ${ICONS.slack}
-                    <span>Post to ${channel}</span>
+                    <span>${canSend ? 'Post' : 'Preview'}: ${channel}</span>
                 </div>
+                ${!canSend ? '<span class="slack-modal-demo-tag">DEMO</span>' : ''}
                 <button class="slack-modal-close" onclick="this.closest('.slack-modal-overlay').remove()">&times;</button>
             </div>
             <div class="slack-modal-body">
                 <div class="slack-modal-channel">Channel: <strong>${channel}</strong></div>
                 <div class="slack-modal-recipients">Mentioning: <strong>${recipients}</strong></div>
+                <div class="slack-modal-divider"></div>
+                <div class="slack-modal-message-label">Message preview</div>
                 <div class="slack-modal-message">${(cta.body || '').replace(/\n/g, '<br>')}</div>
             </div>
             <div class="slack-modal-footer">
-                <button class="slack-modal-btn cancel" onclick="this.closest('.slack-modal-overlay').remove()">Cancel</button>
-                <button class="slack-modal-btn send" onclick="sendSlackMessage(this, '${btoa(JSON.stringify(cta))}')">Send to Slack</button>
+                ${footer}
             </div>
         </div>
     `;
     document.body.appendChild(modal);
+
+    // Attach send handler if connected
+    if (canSend) {
+        const sendBtn = document.getElementById('slack-send-btn');
+        sendBtn.onclick = () => sendSlackMessage(sendBtn, cta);
+    }
 }
 
-async function sendSlackMessage(btn, ctaB64) {
-    const cta = JSON.parse(atob(ctaB64));
+async function sendSlackMessage(btn, cta) {
     btn.textContent = 'Sending...';
     btn.disabled = true;
 
     try {
         const res = await fetch('/api/actions/slack', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Slack-Token': getSlackToken(),
+            },
             body: JSON.stringify({
                 channel: cta.channel || '#general',
                 recipients: cta.recipients || [],
@@ -288,23 +418,18 @@ async function sendSlackMessage(btn, ctaB64) {
     }
 }
 
+// ===== ACTION ITEM TRACKING =====
+
 async function toggleComplete(actionId) {
     const isCompleted = completedActions.has(actionId);
-    const method = isCompleted ? 'DELETE' : 'POST';
+    await fetch(`/api/actions/${actionId}/complete`, { method: isCompleted ? 'DELETE' : 'POST' });
 
-    await fetch(`/api/actions/${actionId}/complete`, { method });
-
-    if (isCompleted) {
-        completedActions.delete(actionId);
-    } else {
-        completedActions.add(actionId);
-    }
+    if (isCompleted) completedActions.delete(actionId);
+    else completedActions.add(actionId);
 
     const el = document.getElementById(`action-${actionId}`);
-    const checkbox = el.querySelector('.action-checkbox');
-
     el.classList.toggle('completed');
-    checkbox.classList.toggle('checked');
+    el.querySelector('.action-checkbox').classList.toggle('checked');
     updateCompletionBadge(currentMeeting);
 }
 
@@ -322,7 +447,8 @@ function updateCompletionBadge(meeting) {
     badge.style.display = done > 0 ? 'inline' : 'none';
 }
 
-// Navigation
+// ===== NAVIGATION =====
+
 function showMeetingList() {
     document.getElementById('meeting-list-view').style.display = 'block';
     document.getElementById('meeting-detail-view').style.display = 'none';
@@ -333,16 +459,13 @@ function showMeetingDetail() {
     document.getElementById('meeting-detail-view').style.display = 'block';
 }
 
-// Tabs
 function switchTab(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-
     event.target.classList.add('active');
     document.getElementById(`tab-${tab}`).classList.add('active');
 }
 
-// Toast
 function showToast(message) {
     const toast = document.getElementById('toast');
     toast.textContent = message;

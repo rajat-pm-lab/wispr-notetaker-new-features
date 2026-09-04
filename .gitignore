@@ -5,3 +5,5 @@ __pycache__/
 credentials.json
 token.json
 .DS_Store
+.vercel
+.env*
