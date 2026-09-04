@@ -111,10 +111,22 @@ async def create_slack_thread(
         channel_name = request.channel.lstrip("#") if request.channel else None
 
         if channel_name:
-            result = client.conversations_list(types="public_channel,private_channel")
-            for ch in result["channels"]:
-                if ch["name"] == channel_name:
-                    channel_id = ch["id"]
+            # Only list public channels (private requires groups:read scope)
+            # Paginate to find the channel
+            cursor = None
+            while True:
+                kwargs = {"types": "public_channel", "limit": 200}
+                if cursor:
+                    kwargs["cursor"] = cursor
+                result = client.conversations_list(**kwargs)
+                for ch in result["channels"]:
+                    if ch["name"] == channel_name:
+                        channel_id = ch["id"]
+                        break
+                if channel_id:
+                    break
+                cursor = result.get("response_metadata", {}).get("next_cursor")
+                if not cursor:
                     break
 
         if not channel_id:
