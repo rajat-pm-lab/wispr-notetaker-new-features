@@ -2,6 +2,7 @@
 let currentMeeting = null;
 let completedActions = new Set();
 let ctaStore = {};
+let meetingsCache = [];
 
 // Slack integration state (stored in localStorage)
 function getSlackToken() { return localStorage.getItem('wispr_slack_token') || ''; }
@@ -14,7 +15,7 @@ function getSlackTeam() { return localStorage.getItem('wispr_slack_team') || '';
 // Icons
 const ICONS = {
     email: '<svg width="16" height="12" viewBox="0 0 24 18" xmlns="http://www.w3.org/2000/svg"><path d="M1.636 0h20.728L12 10.5z" fill="#EA4335"/><path d="M23.5 1.5L12 12 .5 1.5V16a2 2 0 002 2h19a2 2 0 002-2z" fill="#34A853"/><path d="M.5 1.5V16L9 9z" fill="#4285F4"/><path d="M23.5 1.5V16L15 9z" fill="#FBBC05"/></svg>',
-    slack: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.27 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.163 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.163 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.163 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.27a2.527 2.527 0 0 1-2.52-2.523 2.527 2.527 0 0 1 2.52-2.52h6.315A2.528 2.528 0 0 1 24 15.163a2.528 2.528 0 0 1-2.522 2.523h-6.315z"/></svg>',
+    slack: '<svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z" fill="#E01E5A"/><path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z" fill="#36C5F0"/><path d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.27 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.163 0a2.528 2.528 0 0 1 2.523 2.522v6.312z" fill="#2EB67D"/><path d="M15.163 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.163 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.27a2.527 2.527 0 0 1-2.52-2.523 2.527 2.527 0 0 1 2.52-2.52h6.315A2.528 2.528 0 0 1 24 15.163a2.528 2.528 0 0 1-2.522 2.523h-6.315z" fill="#ECB22E"/></svg>',
     calendar: '<svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.316 2.053h1.895A3.789 3.789 0 0124 5.842v14.316A3.789 3.789 0 0120.211 24H3.789A3.789 3.789 0 010 20.158V5.842a3.789 3.789 0 013.789-3.79h1.895" fill="#4285F4"/><path d="M0 9.474h24v10.684A3.789 3.789 0 0120.211 24H3.789A3.789 3.789 0 010 20.158z" fill="#FFFFFF"/><rect x="3" y="11" width="4" height="3.5" rx="0.5" fill="#EA4335"/><rect x="10" y="11" width="4" height="3.5" rx="0.5" fill="#EA4335"/><rect x="17" y="11" width="4" height="3.5" rx="0.5" fill="#EA4335"/><rect x="3" y="17" width="4" height="3.5" rx="0.5" fill="#34A853"/><rect x="10" y="17" width="4" height="3.5" rx="0.5" fill="#34A853"/><rect x="17" y="17" width="4" height="3.5" rx="0.5" fill="#FBBC05"/><path d="M5.684 0a.947.947 0 01.948.947v2.053a.947.947 0 11-1.895 0V.947A.947.947 0 015.684 0zm12.632 0a.947.947 0 01.947.947v2.053a.947.947 0 11-1.895 0V.947A.947.947 0 0118.316 0z" fill="#4285F4"/></svg>',
     note: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
     settings: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
@@ -232,7 +233,12 @@ function updateSettingsIndicator() {
 async function loadMeetings() {
     const res = await fetch('/api/meetings');
     const meetings = await res.json();
+    meetingsCache = meetings;
     renderMeetingList(meetings);
+    // Auto-select first meeting for preview
+    if (meetings.length > 0) {
+        showPreview(meetings[0].id);
+    }
 }
 
 async function loadCompletedActions() {
@@ -280,12 +286,15 @@ function renderMeetingList(meetings) {
         html += `<div class="date-group-label">${formatDateLabel(date)}</div>`;
         grouped[date].forEach(m => {
             html += `
-                <div class="meeting-card" onclick="loadMeeting('${m.id}')">
+                <div class="meeting-card" data-meeting-id="${m.id}" onclick="showPreview('${m.id}')" ondblclick="loadMeeting('${m.id}')">
                     <div class="meeting-card-icon">${ICONS.note}</div>
                     <div class="meeting-card-info">
                         <div class="meeting-card-title">${m.title}</div>
                         <div class="meeting-card-meta">${m.time}</div>
                     </div>
+                    <button class="meeting-card-more" onclick="event.stopPropagation(); loadMeeting('${m.id}')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                    </button>
                 </div>
             `;
         });
@@ -678,13 +687,44 @@ function updateCompletionBadge(meeting) {
 // ===== NAVIGATION =====
 
 function showMeetingList() {
-    document.getElementById('meeting-list-view').style.display = 'block';
+    document.getElementById('meeting-list-view').style.display = 'flex';
     document.getElementById('meeting-detail-view').style.display = 'none';
 }
 
 function showMeetingDetail() {
     document.getElementById('meeting-list-view').style.display = 'none';
     document.getElementById('meeting-detail-view').style.display = 'block';
+}
+
+// ===== PREVIEW PANEL =====
+async function showPreview(meetingId) {
+    // Highlight selected card
+    document.querySelectorAll('.meeting-card').forEach(c => c.classList.remove('selected'));
+    const selectedCard = document.querySelector(`.meeting-card[data-meeting-id="${meetingId}"]`);
+    if (selectedCard) selectedCard.classList.add('selected');
+
+    // Fetch meeting details for preview
+    const res = await fetch(`/api/meetings/${meetingId}`);
+    const meeting = await res.json();
+
+    const previewEmpty = document.getElementById('preview-empty');
+    const previewContent = document.getElementById('preview-content');
+    previewEmpty.style.display = 'none';
+    previewContent.style.display = 'block';
+
+    document.getElementById('preview-title').textContent = meeting.title;
+
+    const dateLabel = meeting.date === new Date().toISOString().split('T')[0] ? 'Today' :
+        meeting.date === new Date(Date.now() - 86400000).toISOString().split('T')[0] ? 'Yesterday' :
+        meeting.date;
+    document.getElementById('preview-meta').textContent = `${dateLabel} \u00B7 ${meeting.time}`;
+
+    // Build overview from first few summary bullets
+    const overviewBullets = meeting.summary_sections.flatMap(s => s.bullets).slice(0, 3);
+    document.getElementById('preview-overview-text').textContent = overviewBullets.join(' ');
+
+    // Wire up Open Note button
+    document.getElementById('preview-open-btn').onclick = () => loadMeeting(meetingId);
 }
 
 function switchTab(tab) {
