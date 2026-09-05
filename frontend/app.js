@@ -286,7 +286,7 @@ function renderMeetingList(meetings) {
         html += `<div class="date-group-label">${formatDateLabel(date)}</div>`;
         grouped[date].forEach(m => {
             html += `
-                <div class="meeting-card" data-meeting-id="${m.id}" onclick="showPreview('${m.id}')" ondblclick="loadMeeting('${m.id}')">
+                <div class="meeting-card" data-meeting-id="${m.id}" onclick="loadMeeting('${m.id}')">
                     <div class="meeting-card-icon">${ICONS.note}</div>
                     <div class="meeting-card-info">
                         <div class="meeting-card-title">${m.title}</div>
